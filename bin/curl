@@ -1,0 +1,53 @@
+#! /usr/bin/env ruby
+
+require 'base64'
+require 'fileutils'
+require 'httparty'
+require 'json'
+require 'optparse'
+
+options = {
+  host: 'localhost',
+  port: '9292'
+}
+
+option_parser = OptionParser.new do |opts|
+  opts.banner = "Usage: pet-detector -f FILE -g GAS -l LEVEL"
+
+  opts.on('-f', '--file FILE', 'Screenshot of game to solve') do |file|
+    options[:file] = file
+  end
+
+  opts.on('-g', '--gas AMOUNT', 'Amount of gas available') do |gas|
+    options[:gas] = gas
+  end
+
+  opts.on('-l', '--level LEVEL', "The level you're on") do |level|
+    options[:level] = level
+  end
+
+  opts.on('-h', '--host HOST', "The server host") do |host|
+    options[:host] = host
+  end
+
+  opts.on('-p', '--port PORT', "The server port") do |port|
+    options[:port] = port
+  end
+
+  opts.on_tail('-h', '--help', 'Show this message') do
+    puts opts
+    exit 0
+  end
+end
+
+option_parser.parse!
+
+url = "http://#{options[:host]}:#{options[:port]}/v1/detect.json"
+encoded_image = Base64.encode64(File.read(options[:file]))
+body = { image: encoded_image, gas: options[:gas], level: options[:level] }
+
+response = HTTParty.post(url, {
+  body: body.to_json, headers: { 'Content-Type' => 'application/json' }
+})
+
+puts response.body
