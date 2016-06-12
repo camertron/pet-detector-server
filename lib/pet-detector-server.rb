@@ -36,38 +36,42 @@ module PetDetectorServer
     end
 
     post :detect do
-      level = Level.get(params[:level])
-      file = Tempfile.open('game_image')
-      file.binmode
-      file.write(Base64.decode64(params[:image]))
-      file.flush
-      file.close
-      bmp = Bitmap.load(file.path)
-      file.unlink
-      det = BoundaryDetector.new(bmp)
-      rect = det.get_bounds
-      grid = Grid.new(bmp, rect, level)
-      entity_matrix = EntityDetector.new(grid, level.animals).entities
-      solver = Solver.new(entity_matrix, params[:gas])
+      begin
+        level = Level.get(params[:level])
+        file = Tempfile.open('game_image')
+        file.binmode
+        file.write(Base64.decode64(params[:image]))
+        file.flush
+        file.close
+        bmp = Bitmap.load(file.path)
+        file.unlink
+        det = BoundaryDetector.new(bmp)
+        rect = det.get_bounds
+        grid = Grid.new(bmp, rect, level)
+        entity_matrix = EntityDetector.new(grid, level.animals).entities
+        solver = Solver.new(entity_matrix, params[:gas])
 
-      {
-        data: {
-          level: params[:level],
-          gas: params[:gas],
-          solution: solver.solve,
-          entities: entity_matrix.map do |x, y, entity|
-            {
-              name: entity_str(entity),
-              track: {
-                top: entity.directions.top?,
-                bottom: entity.directions.bottom?,
-                left: entity.directions.left?,
-                right: entity.directions.right?
+        {
+          data: {
+            level: params[:level],
+            gas: params[:gas],
+            solution: solver.solve,
+            entities: entity_matrix.map do |x, y, entity|
+              {
+                name: entity_str(entity),
+                track: {
+                  top: entity.directions.top?,
+                  bottom: entity.directions.bottom?,
+                  left: entity.directions.left?,
+                  right: entity.directions.right?
+                }
               }
-            }
-          end.rows
+            end.rows
+          }
         }
-      }
+      rescue => e
+        error!([{ error: e.message }], 500)
+      end
     end
   end
 end
